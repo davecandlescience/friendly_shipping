@@ -5,14 +5,17 @@ require 'friendly_shipping/http_client'
 require 'friendly_shipping/services/ups_json/access_token'
 require 'friendly_shipping/services/ups_json/api_error'
 require 'friendly_shipping/services/ups_json/generate_rates_payload'
+require 'friendly_shipping/services/ups_json/generate_timings_payload'
 require 'friendly_shipping/services/ups_json/parse_json_response'
 require 'friendly_shipping/services/ups_json/parse_money_hash'
 require 'friendly_shipping/services/ups_json/parse_rate_modifier_hash'
 require 'friendly_shipping/services/ups_json/parse_rates_response'
+require 'friendly_shipping/services/ups_json/parse_timings_response'
 require 'friendly_shipping/services/ups_json/rates_item_options'
 require 'friendly_shipping/services/ups_json/rates_package_options'
 require 'friendly_shipping/services/ups_json/rates_options'
 require 'friendly_shipping/services/ups_json/shipping_methods'
+require 'friendly_shipping/services/ups_json/timings_options'
 
 module FriendlyShipping
   module Services
@@ -95,7 +98,7 @@ module FriendlyShipping
           "Authorization" => "Bearer #{access_token}",
           "Content-Type" => "application/json",
           "Accept" => "application/json"
-        }.compact
+        }
         rates_request_body = GenerateRatesPayload.call(shipment: shipment, options: options).to_json
 
         request = FriendlyShipping::Request.new(
@@ -116,24 +119,26 @@ module FriendlyShipping
       # @param [Physical::Shipment] shipment The shipment we want to estimate timings for
       # @param [FriendlyShipping::Services::Ups::TimingOptions] options Options for this call
       def timings(shipment, options:, debug: false)
-        raise 'NYI'
-
-        time_in_transit_request_xml = SerializeTimeInTransitRequest.call(
-          shipment: shipment,
-          options: options
-        )
-        time_in_transit_url = base_url + RESOURCES[:timings]
+        url = "#{base_url}/api/shipments/v1/transittimes"
+        headers = {
+          "Authorization" => "Bearer #{access_token}",
+          "Content-Type" => "application/json",
+          "Accept" => "application/json",
+          "transId" => SecureRandom.uuid,
+          "transactionSrc" => "testing"
+        }
+        timings_request_body = GenerateTimingsPayload.call(shipment: shipment, options: options).to_json
 
         request = FriendlyShipping::Request.new(
-          url: time_in_transit_url,
+          url:,
           http_method: "POST",
-          body: access_request_xml + time_in_transit_request_xml,
-          readable_body: time_in_transit_request_xml,
-          debug: debug
+          headers:,
+          body: timings_request_body,
+          debug:
         )
 
         client.post(request).bind do |response|
-          ParseTimeInTransitResponse.call(response: response, request: request)
+          ParseTimingsResponse.call(response: response, request: request, shipment: shipment)
         end
       end
 
